@@ -1,0 +1,19 @@
+# feishu-cli-bot 配置示例
+# 复制为 ~/.feishu_bot_env 并填入真实值（chmod 600）。
+# 也可直接使用同名环境变量，二者等价。
+
+# ---- 必填：大模型（OpenAI 兼容接口）----
+# base_url 结尾不要带 /v1 也行，代码会自动补 /chat/completions
+FEISHU_BOT_LLM_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+FEISHU_BOT_LLM_KEY=sk-your-key-here
+# 模型名（火山方舟豆包 / OpenAI / 本地 Ollama 均可）
+FEISHU_BOT_LLM_MODEL=doubao-seed-2-1-pro-260628
+
+# ---- 监听的会话（你与机器人的私聊 chat_id）----
+# 用 t_whoami / list_chats 工具可拿到；不填则用代码默认值
+FEISHU_BOT_CHAT_ID=oc_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# ---- 可选 ----
+FEISHU_BOT_INTERVAL=3                 # 轮询间隔（秒）
+FEISHU_BOT_ALLOW_WRITE=1              # 1=允许写操作（建日程/任务/发消息），0=只读
+FEISHU_BOT_TYPING=1                   # 1=收到消息先回「正在输入」表情，0=关闭

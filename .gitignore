@@ -1,0 +1,30 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# --- 运行产物 / 本地配置 / 密钥 ---
+*.log
+bot-poller.log
+*.state.json
+feishu_bot_env
+.feishu_bot_env
+.env
+.env.*
+!.env.example
+
+# --- OS ---
+.DS_Store
+.AppleDouble
+Thumbs.db
+
+# --- 编辑器 ---
+.idea/
+.vscode/
+*.swp
