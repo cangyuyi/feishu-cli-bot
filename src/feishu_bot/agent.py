@@ -16,6 +16,7 @@ from . import config
 from . import formatter
 from . import tools
 from . import schemas
+from . import storage
 
 SYSTEM_PROMPT = (
     "你是「专属飞书办公小助手」（Feishu Office Assistant），一台本机常驻的飞书 AI 助手，能真正执行任务而不只是聊天。\n"
@@ -64,7 +65,7 @@ def agent_reply(user_text: str, history: list) -> tuple[str, list]:
     """
     model = os.environ.get("FEISHU_BOT_LLM_MODEL", "gpt-4o-mini")
     messages = [{"role": "system", "content": SYSTEM_PROMPT.format(now=formatter.now_str())}]
-    for h in history[-config.HISTORY_MAX:]:
+    for h in storage.trim_history(history):
         messages.append(h)
     messages.append({"role": "user", "content": user_text})
 

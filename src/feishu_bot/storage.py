@@ -9,6 +9,7 @@ import json
 import os
 
 from . import config
+from . import formatter
 
 
 def load_state() -> dict:
@@ -27,3 +28,26 @@ def save_state(state: dict) -> None:
     """写入状态文件。"""
     with open(config.STATE_FILE, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False)
+
+
+def trim_history(history: list) -> list:
+    """按 token 预算保留最近的对话历史，避免顶破模型上下文窗口。
+
+    - 先按消息条数硬上限 ``config.HISTORY_MAX`` 裁剪（兜底，防止 state 文件无限膨胀）。
+    - 再按 token 预算 ``config.HISTORY_TOKEN_BUDGET`` 从新到旧保留，超出即丢弃最旧部分。
+    返回的是 ``history`` 的一个新列表（不修改入参）。
+    """
+    if not history:
+        return []
+    recent = history[-config.HISTORY_MAX:] if config.HISTORY_MAX > 0 else list(history)
+    budget = config.HISTORY_TOKEN_BUDGET
+    kept: list = []
+    used = 0
+    for msg in reversed(recent):
+        content = msg.get("content", "") if isinstance(msg, dict) else ""
+        t = formatter.estimate_tokens(content) if isinstance(content, str) else 0
+        if kept and used + t > budget:
+            break
+        kept.insert(0, msg)
+        used += t
+    return kept

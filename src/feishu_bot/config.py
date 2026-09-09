@@ -24,8 +24,11 @@ CHAT_ID = os.environ.get(
 # 轮询间隔（秒）
 INTERVAL = int(os.environ.get("FEISHU_BOT_INTERVAL", "3"))
 
-# 对话记忆保留的轮数
-HISTORY_MAX = 16
+# 对话记忆保留策略（默认贴近模型 256k 上下文窗口，留余量给系统提示/工具/回复）
+# - 按 token 预算截断（主）：HISTORY_TOKEN_BUDGET，可通过 FEISHU_BOT_HISTORY_TOKEN_BUDGET 覆盖
+# - 按消息条数硬上限（兜底，防 state 文件无限膨胀）：HISTORY_MAX，可通过 FEISHU_BOT_HISTORY_MAX 覆盖
+HISTORY_MAX = int(os.environ.get("FEISHU_BOT_HISTORY_MAX", "5000"))
+HISTORY_TOKEN_BUDGET = int(os.environ.get("FEISHU_BOT_HISTORY_TOKEN_BUDGET", "200000"))
 
 # function calling 最大轮数（防止模型无限循环调用工具）
 MAX_TOOL_ROUNDS = 4

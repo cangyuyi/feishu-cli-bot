@@ -70,7 +70,7 @@ sequenceDiagram
 `storage.py` 把两样东西写进 `~/.feishu_bot_state.json`：
 
 1. `last_message_id`：上一次处理到的消息 ID。新消息按 ID 去重，避免重启后重复回复。
-2. `history`：最近 `HISTORY_MAX`（默认 16）轮对话，作为 LLM 的上下文。
+2. `history`：最近对话上下文，按 token 预算（`HISTORY_TOKEN_BUDGET`，默认 200000，约贴近模型 256k 窗口）从新到旧保留；另受消息条数硬上限 `HISTORY_MAX`（默认 5000）兜底，避免顶破上下文窗口或 state 文件无限膨胀。
 
 ## 写操作安全闸
 

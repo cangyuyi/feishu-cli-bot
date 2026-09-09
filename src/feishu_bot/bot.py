@@ -80,7 +80,7 @@ def process_new(state: dict, verbose: bool = True) -> None:
         if send(reply):
             history.append({"role": "user", "content": text})
             history.append({"role": "assistant", "content": reply})
-            state["history"] = history[-config.HISTORY_MAX:]
+            state["history"] = storage.trim_history(history)
             state["last_message_id"] = m["message_id"]
             storage.save_state(state)
             if verbose:

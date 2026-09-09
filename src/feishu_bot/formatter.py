@@ -41,3 +41,23 @@ def now_str() -> str:
 def today_str() -> str:
     """今天日期 YYYY-MM-DD。"""
     return datetime.datetime.now(config.TZ).strftime("%Y-%m-%d")
+
+
+def estimate_tokens(text: str) -> int:
+    """粗略估算文本的 token 数（零依赖近似，用于历史截断预算）。
+
+    中文按 ~1.6 token/字、英文/数字按 ~0.3 token/字符、标点与空白按 ~0.15 估算。
+    这是保守上偏的近似：宁可按略多估算，避免历史意外顶破模型上下文窗口。
+    """
+    if not text:
+        return 0
+    n = 0.0
+    for ch in text:
+        cp = ord(ch)
+        if 0x4E00 <= cp <= 0x9FFF or 0x3040 <= cp <= 0x30FF or 0xFF00 <= cp <= 0xFFEF:
+            n += 1.6  # CJK / 假名 / 全角
+        elif ch.isascii() and ch.isalnum():
+            n += 0.3  # 英文 / 数字
+        else:
+            n += 0.15  # 标点 / 空白
+    return max(1, int(n) + 1)
