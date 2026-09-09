@@ -1,6 +1,6 @@
-# feishu-cli-bot
+# 🤖 专属飞书办公小助手 · Feishu Office Assistant
 
-> 一个**本地常驻**的飞书 AI 助手：无需开放平台后台、无需公网服务器、无需 App Secret，
+> 项目代号 `feishu-cli-bot` —— 一个**本地常驻**的飞书 AI 助手：无需开放平台后台、无需公网服务器、无需 App Secret，
 > 复用你本机已授权的 `lark-cli`，配合任意 OpenAI 兼容大模型，实现真正的「在飞书里对话、让 AI 真的去干活」。
 
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
