@@ -1,4 +1,6 @@
 """config 模块的单测：env 文件加载 / 写开关 / 模型配置判定。"""
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest

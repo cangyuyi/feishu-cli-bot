@@ -1,4 +1,6 @@
 """tools 模块的单测：用 mock 隔离 lark-cli，验证解析/分支/写开关/注册表对齐。"""
+from __future__ import annotations
+
 import os
 import unittest
 from unittest import mock

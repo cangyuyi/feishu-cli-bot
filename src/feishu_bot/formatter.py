@@ -1,4 +1,6 @@
 """输出格式化辅助函数（纯函数，便于单元测试）。"""
+from __future__ import annotations
+
 import datetime
 import json
 

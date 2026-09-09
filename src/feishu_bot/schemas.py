@@ -3,6 +3,8 @@
 大模型根据这里的描述自主决定调用哪个工具、传什么参数。
 顺序与 :data:`feishu_bot.tools.TOOL_IMPL` 中的实现一一对应。
 """
+from __future__ import annotations
+
 
 TOOL_SCHEMA = [
     {

@@ -3,6 +3,8 @@
 把「上一次读到的消息 ID」和最近 N 轮对话记忆写进 JSON 文件，
 保证机器人重启后能续上上下文、不会重复回复同一条消息。
 """
+from __future__ import annotations
+
 import json
 import os
 

@@ -1,4 +1,6 @@
 """formatter 模块的单测（纯函数，不依赖飞书）。"""
+from __future__ import annotations
+
 import datetime
 import unittest
 

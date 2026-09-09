@@ -6,6 +6,8 @@
 
 涉及写操作（建日程/建任务/发消息/回复）会先检查 :func:`config.allow_write`。
 """
+from __future__ import annotations
+
 import json
 
 from . import cli

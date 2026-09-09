@@ -6,6 +6,8 @@
 
 这样既能让机器人脱离任何宿主应用独立运行，又不必把密钥写进代码。
 """
+from __future__ import annotations
+
 import datetime
 import os
 

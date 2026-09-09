@@ -8,6 +8,8 @@
 
 这样无需 App Secret、无需在开发者后台配置事件订阅即可跑起来。
 """
+from __future__ import annotations
+
 import json
 import os
 import shutil

@@ -6,6 +6,8 @@
   已经收集到足够信息，再给出最终自然语言回复。
 - 未配置大模型时，退化为关键词工具 + 规则回复，保证离线也能用。
 """
+from __future__ import annotations
+
 import json
 import os
 import urllib.request

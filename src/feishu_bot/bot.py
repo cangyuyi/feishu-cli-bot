@@ -5,6 +5,8 @@
 - 把已处理消息 ID 与对话记忆持久化，重启可续
 - 提供 --selftest / --once / --clear 等运维子命令
 """
+from __future__ import annotations
+
 import argparse
 import os
 import time
