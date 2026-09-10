@@ -221,4 +221,36 @@ TOOL_SCHEMA = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_bitable",
+            "description": "创建一个新的飞书多维表格（BaseApp，结构化在线表格，可后续加字段/记录）。用户说「建一张在线表格/多维表格/在线数据库」时优先用。folder_token 可选，不传则建在用户默认空间，无需预先配置即可一键建表。返回 app_token 与访问链接。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "多维表格名称"},
+                    "workspace_token": {
+                        "type": "string",
+                        "description": "飞书空间/文件夹 token；不传则用默认空间（可在 ~/.feishu_bot_env 配 FEISHU_BOT_WORKSPACE_TOKEN）",
+                    },
+                },
+                "required": ["name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_spreadsheet",
+            "description": "创建一个新的飞书电子表格（类似 Excel 的在线表格）。用户说「建一个电子表格/在线 Excel 表格」时用。返回 spreadsheetToken 与访问链接。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "电子表格标题"},
+                },
+                "required": ["name"],
+            },
+        },
+    },
 ]

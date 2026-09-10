@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+import os
 
 from . import cli
 from . import config
@@ -216,6 +217,49 @@ def t_list_drive_files(folder_token: str | None = None, limit: int = 20) -> str:
     return "\n".join(out)
 
 
+# ---------- 飞书在线表格（多维表格 / 电子表格）----------
+
+def t_create_bitable(name: str, workspace_token: str | None = None) -> str:
+    """创建一个新的飞书多维表格（BaseApp，结构化在线表格）。
+
+    走底层 OpenAPI（POST /open-apis/bitable/v1/apps），folder_token 可选：
+    不传则建在用户默认空间，从而无需预先配置 workspace 也能一键建表。
+    返回 app_token 与访问链接。
+    """
+    if not config.allow_write():
+        return "写操作已关闭（FEISHU_BOT_ALLOW_WRITE=0）。"
+    body = {"name": name}
+    ws = workspace_token or os.environ.get("FEISHU_BOT_WORKSPACE_TOKEN")
+    if ws:
+        body["folder_token"] = ws
+    r = cli.run(["api", "POST", "/open-apis/bitable/v1/apps", "--as", "user",
+                 "--data", json.dumps(body, ensure_ascii=False)])
+    # 兼容 lark-cli 包装信封 {ok,data,error} 与 OpenAPI 原始信封 {code,data,msg}
+    if not r.get("ok", True) and r.get("ok") is not None:
+        return f"创建多维表格失败：{r.get('error', {}).get('message', '未知错误')}"
+    if r.get("code", 0) != 0:
+        return f"创建多维表格失败：{r.get('msg', '未知错误')}"
+    data = r.get("data") or {}
+    app = data.get("app") or data
+    app_token = app.get("app_token") or data.get("app_token")
+    url = app.get("url") or data.get("url") or (f"https://feishu.cn/base/{app_token}" if app_token else "")
+    return f"已创建多维表格：{name}\napp_token={app_token}\n链接：{url}"
+
+
+def t_create_spreadsheet(name: str) -> str:
+    """创建一个新的飞书电子表格（类似 Excel 的在线表格）。返回 spreadsheetToken 与链接。"""
+    if not config.allow_write():
+        return "写操作已关闭（FEISHU_BOT_ALLOW_WRITE=0）。"
+    body = json.dumps({"title": name}, ensure_ascii=False)
+    r = cli.run(["sheets", "spreadsheets", "create", "--as", "user", "--data", body])
+    if not r.get("ok"):
+        return f"创建电子表格失败：{r.get('error', {}).get('message', '未知错误')}"
+    data = r.get("data", {})
+    sp_token = data.get("spreadsheetToken") or data.get("spreadsheet_token")
+    url = data.get("url") or (f"https://feishu.cn/sheets/{sp_token}" if sp_token else "")
+    return f"已创建电子表格：{name}\nspreadsheetToken={sp_token}\n链接：{url}"
+
+
 # ---------- 身份 ----------
 
 def t_whoami() -> str:
@@ -360,4 +404,6 @@ TOOL_IMPL = {
         a.get("date"), int(a.get("duration_minutes", 30)),
         int(a.get("hour_start", 9)), int(a.get("hour_end", 18))),
     "task_search": lambda a: t_task_search(a.get("query"), int(a.get("limit", 15))),
+    "create_bitable": lambda a: t_create_bitable(a["name"], a.get("workspace_token")),
+    "create_spreadsheet": lambda a: t_create_spreadsheet(a["name"]),
 }

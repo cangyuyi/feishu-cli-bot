@@ -68,7 +68,7 @@ class TestToolRegistryConsistency(unittest.TestCase):
         schema_names = {s["function"]["name"] for s in schemas.TOOL_SCHEMA}
         impl_names = set(tools.TOOL_IMPL)
         self.assertEqual(impl_names, schema_names)
-        self.assertEqual(len(impl_names), 16)
+        self.assertEqual(len(impl_names), 18)
 
     def test_dispatch_roundtrip(self):
         # get_tasks 不应触发网络（mock 兜底抛错以验证逻辑短路）
@@ -76,6 +76,49 @@ class TestToolRegistryConsistency(unittest.TestCase):
             # create_task 在写关闭时不调 cli
             with mock.patch.dict(os.environ, {"FEISHU_BOT_ALLOW_WRITE": "0"}):
                 out = tools.TOOL_IMPL["create_task"]({"summary": "x"})
+        self.assertIn("关闭", out)
+
+
+class TestCreateBitable(unittest.TestCase):
+    def test_ok_returns_token_and_url(self):
+        fake = {"ok": True, "data": {"app_token": "appXXXX", "url": "https://feishu.cn/base/appXXXX"}}
+        with mock.patch.object(tools.cli, "run", return_value=fake):
+            out = tools.t_create_bitable("项目表")
+        self.assertIn("已创建多维表格", out)
+        self.assertIn("appXXXX", out)
+
+    def test_workspace_from_env(self):
+        fake = {"ok": True, "data": {"app": {"app_token": "appY"}}}
+        with mock.patch.object(tools.cli, "run", return_value=fake) as m, \
+             mock.patch.dict(os.environ, {"FEISHU_BOT_WORKSPACE_TOKEN": "wsZ"}):
+            tools.t_create_bitable("表", workspace_token=None)
+        sent = m.call_args.args[0]
+        self.assertIn("/open-apis/bitable/v1/apps", sent)
+        data_arg = sent[sent.index("--data") + 1]
+        self.assertIn("wsZ", data_arg)
+
+    def test_write_off(self):
+        with mock.patch.dict(os.environ, {"FEISHU_BOT_ALLOW_WRITE": "0"}):
+            out = tools.t_create_bitable("表")
+        self.assertIn("关闭", out)
+
+    def test_fail(self):
+        with mock.patch.object(tools.cli, "run", return_value={"ok": False, "error": {"message": "no auth"}}):
+            out = tools.t_create_bitable("表")
+        self.assertIn("失败", out)
+
+
+class TestCreateSpreadsheet(unittest.TestCase):
+    def test_ok_returns_token_and_url(self):
+        fake = {"ok": True, "data": {"spreadsheetToken": "shtXXXX"}}
+        with mock.patch.object(tools.cli, "run", return_value=fake):
+            out = tools.t_create_spreadsheet("报表")
+        self.assertIn("已创建电子表格", out)
+        self.assertIn("shtXXXX", out)
+
+    def test_write_off(self):
+        with mock.patch.dict(os.environ, {"FEISHU_BOT_ALLOW_WRITE": "0"}):
+            out = tools.t_create_spreadsheet("报表")
         self.assertIn("关闭", out)
 
 
