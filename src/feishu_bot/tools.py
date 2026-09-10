@@ -294,7 +294,10 @@ def _content_to_doc_blocks(content: str) -> list[dict]:
 
 
 def _write_doc_content(document_id: str, content: str) -> tuple[bool, str]:
-    """向已创建的 Docx 文档追加内容。每次最多 40 个 block，避免触发单请求上限。"""
+    """向已创建的 Docx 文档追加内容。每次最多 40 个 block，避免触发单请求上限。
+
+    lark-cli 的 ``api`` 子命令不允许 path 里带 query string，必须用 ``--params`` 传参。
+    """
     blocks = _content_to_doc_blocks(content)
     if not blocks:
         return True, ""
@@ -303,21 +306,23 @@ def _write_doc_content(document_id: str, content: str) -> tuple[bool, str]:
     for i in range(0, total, batch_size):
         batch = blocks[i : i + batch_size]
         payload = {"index": -1, "children": batch}
-        path = (
-            f"/open-apis/docx/v1/documents/{document_id}/blocks/{document_id}/children"
-            f"?document_revision_id=-1"
-        )
+        path = f"/open-apis/docx/v1/documents/{document_id}/blocks/{document_id}/children"
         r = cli.run(
             [
                 "api",
                 "POST",
                 path,
+                "--params",
+                json.dumps({"document_revision_id": -1}, ensure_ascii=False),
                 "--as",
                 "user",
                 "--data",
                 json.dumps(payload, ensure_ascii=False),
             ]
         )
+        if not r.get("ok", True):
+            err = r.get("error", {})
+            return False, f"写入内容失败：{err.get('message', err.get('code', '未知错误'))}"
         if r.get("code", 0) != 0:
             return False, f"写入内容失败：{r.get('msg', '未知错误')}"
     return True, f"已自动写入 {total} 段内容"
