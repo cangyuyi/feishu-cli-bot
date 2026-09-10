@@ -257,12 +257,13 @@ TOOL_SCHEMA = [
         "type": "function",
         "function": {
             "name": "create_doc",
-            "description": "创建一个新的飞书文档（Docx，类似 Word 的在线文档）。用户说「建一个文档/飞书文档/Word 文档」时优先用。返回 document_id 与访问链接。",
+            "description": "创建一个新的飞书文档（Docx，类似 Word 的在线文档）。用户说「建一个文档/飞书文档/Word 文档」时优先用。如果提供了 content，会自动把内容写入文档，不用再手动粘贴。支持简单 Markdown 风格：# 一级标题、## 二级标题、普通段落。返回 document_id 与访问链接。",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "name": {"type": "string", "description": "文档标题"},
                     "folder_token": {"type": "string", "description": "父文件夹 token；不传则建在默认空间"},
+                    "content": {"type": "string", "description": "要写入文档的完整内容。支持 # 标题、## 标题、普通段落，空行会被跳过。不传则只创建空文档。"},
                 },
                 "required": ["name"],
             },

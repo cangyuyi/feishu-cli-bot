@@ -260,8 +260,75 @@ def t_create_spreadsheet(name: str) -> str:
     return f"已创建电子表格：{name}\nspreadsheetToken={sp_token}\n链接：{url}"
 
 
-def t_create_doc(name: str, folder_token: str | None = None) -> str:
-    """创建一个新的飞书文档（Docx，类似 Word 的在线文档）。返回 document_id 与链接。"""
+def _content_to_doc_blocks(content: str) -> list[dict]:
+    """把 Markdown 风格的纯文本转换成飞书 Docx block 列表。
+
+    目前支持：
+    - `# 标题` → 标题 1
+    - `## 标题` → 标题 2
+    - `### 标题` → 标题 3
+    - 普通行 → 文本段落
+    空行会被跳过。
+    """
+    blocks: list[dict] = []
+    for raw in content.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        elements = [{"text_run": {"content": ""}}]
+        block: dict = {}
+        if line.startswith("### "):
+            elements[0]["text_run"]["content"] = line[4:].strip()
+            block = {"block_type": 5, "heading3": {"elements": elements}}
+        elif line.startswith("## "):
+            elements[0]["text_run"]["content"] = line[3:].strip()
+            block = {"block_type": 4, "heading2": {"elements": elements}}
+        elif line.startswith("# "):
+            elements[0]["text_run"]["content"] = line[2:].strip()
+            block = {"block_type": 3, "heading1": {"elements": elements}}
+        else:
+            elements[0]["text_run"]["content"] = line
+            block = {"block_type": 2, "text": {"elements": elements}}
+        blocks.append(block)
+    return blocks
+
+
+def _write_doc_content(document_id: str, content: str) -> tuple[bool, str]:
+    """向已创建的 Docx 文档追加内容。每次最多 40 个 block，避免触发单请求上限。"""
+    blocks = _content_to_doc_blocks(content)
+    if not blocks:
+        return True, ""
+    batch_size = 40
+    total = len(blocks)
+    for i in range(0, total, batch_size):
+        batch = blocks[i : i + batch_size]
+        payload = {"index": -1, "children": batch}
+        path = (
+            f"/open-apis/docx/v1/documents/{document_id}/blocks/{document_id}/children"
+            f"?document_revision_id=-1"
+        )
+        r = cli.run(
+            [
+                "api",
+                "POST",
+                path,
+                "--as",
+                "user",
+                "--data",
+                json.dumps(payload, ensure_ascii=False),
+            ]
+        )
+        if r.get("code", 0) != 0:
+            return False, f"写入内容失败：{r.get('msg', '未知错误')}"
+    return True, f"已自动写入 {total} 段内容"
+
+
+def t_create_doc(name: str, folder_token: str | None = None, content: str | None = None) -> str:
+    """创建一个新的飞书文档（Docx，类似 Word 的在线文档）。
+
+    如果提供 ``content``，会在建好的文档里自动填充内容。content 支持简单的 Markdown 风格：
+    ``# 标题``、``## 标题``、普通段落。
+    """
     if not config.allow_write():
         return "写操作已关闭（FEISHU_BOT_ALLOW_WRITE=0）。"
     body = {"title": name}
@@ -277,7 +344,13 @@ def t_create_doc(name: str, folder_token: str | None = None) -> str:
     doc = data.get("document") or data
     doc_id = doc.get("document_id") or data.get("document_id")
     url = doc.get("url") or data.get("url") or (f"https://feishu.cn/docx/{doc_id}" if doc_id else "")
-    return f"已创建飞书文档：{name}\ndocument_id={doc_id}\n链接：{url}"
+    result = f"已创建飞书文档：{name}\ndocument_id={doc_id}\n链接：{url}"
+    if content and doc_id:
+        ok, msg = _write_doc_content(doc_id, content)
+        result += f"\n{msg}"
+        if not ok:
+            result += "（文档已创建，但内容未写入）"
+    return result
 
 
 # ---------- 身份 ----------
@@ -422,5 +495,5 @@ TOOL_IMPL = {
     "task_search": lambda a: t_task_search(a.get("query"), int(a.get("limit", 15))),
     "create_bitable": lambda a: t_create_bitable(a["name"], a.get("workspace_token")),
     "create_spreadsheet": lambda a: t_create_spreadsheet(a["name"]),
-    "create_doc": lambda a: t_create_doc(a["name"], a.get("folder_token")),
+    "create_doc": lambda a: t_create_doc(a["name"], a.get("folder_token"), a.get("content")),
 }

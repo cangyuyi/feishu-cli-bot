@@ -32,7 +32,7 @@
 | `list_drive_files` | 列出云盘文件/文件夹（不传 `folder_token` 列根目录） | `folder_token?`, `limit?` |
 | `create_bitable` ✏️ | 创建飞书多维表格（BaseApp） | `name`, `workspace_token?` |
 | `create_spreadsheet` ✏️ | 创建飞书电子表格（类似 Excel） | `name` |
-| `create_doc` ✏️ | 创建飞书文档（Docx，类似 Word） | `name`, `folder_token?` |
+| `create_doc` ✏️ | 创建飞书文档（Docx，类似 Word）；可选 `content` 自动填充内容 | `name`, `folder_token?`, `content?` |
 
 ## 信息 / 报告
 
