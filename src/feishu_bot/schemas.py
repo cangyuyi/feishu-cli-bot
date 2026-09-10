@@ -253,4 +253,19 @@ TOOL_SCHEMA = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_doc",
+            "description": "创建一个新的飞书文档（Docx，类似 Word 的在线文档）。用户说「建一个文档/飞书文档/Word 文档」时优先用。返回 document_id 与访问链接。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "文档标题"},
+                    "folder_token": {"type": "string", "description": "父文件夹 token；不传则建在默认空间"},
+                },
+                "required": ["name"],
+            },
+        },
+    },
 ]

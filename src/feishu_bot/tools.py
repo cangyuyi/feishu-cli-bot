@@ -260,6 +260,26 @@ def t_create_spreadsheet(name: str) -> str:
     return f"已创建电子表格：{name}\nspreadsheetToken={sp_token}\n链接：{url}"
 
 
+def t_create_doc(name: str, folder_token: str | None = None) -> str:
+    """创建一个新的飞书文档（Docx，类似 Word 的在线文档）。返回 document_id 与链接。"""
+    if not config.allow_write():
+        return "写操作已关闭（FEISHU_BOT_ALLOW_WRITE=0）。"
+    body = {"title": name}
+    if folder_token:
+        body["folder_token"] = folder_token
+    r = cli.run(["api", "POST", "/open-apis/docx/v1/documents", "--as", "user",
+                 "--data", json.dumps(body, ensure_ascii=False)])
+    if not r.get("ok", True) and r.get("ok") is not None:
+        return f"创建文档失败：{r.get('error', {}).get('message', '未知错误')}"
+    if r.get("code", 0) != 0:
+        return f"创建文档失败：{r.get('msg', '未知错误')}"
+    data = r.get("data") or {}
+    doc = data.get("document") or data
+    doc_id = doc.get("document_id") or data.get("document_id")
+    url = doc.get("url") or data.get("url") or (f"https://feishu.cn/docx/{doc_id}" if doc_id else "")
+    return f"已创建飞书文档：{name}\ndocument_id={doc_id}\n链接：{url}"
+
+
 # ---------- 身份 ----------
 
 def t_whoami() -> str:
@@ -379,10 +399,6 @@ def t_report(include_chats: bool = True) -> str:
 
 # ---------- 工具注册表 ----------
 
-def json_dumps(obj) -> str:
-    return json.dumps(obj, ensure_ascii=False)
-
-
 TOOL_IMPL = {
     "get_agenda": lambda a: t_agenda(a.get("date")),
     "get_tasks": lambda a: t_tasks(),
@@ -406,4 +422,5 @@ TOOL_IMPL = {
     "task_search": lambda a: t_task_search(a.get("query"), int(a.get("limit", 15))),
     "create_bitable": lambda a: t_create_bitable(a["name"], a.get("workspace_token")),
     "create_spreadsheet": lambda a: t_create_spreadsheet(a["name"]),
+    "create_doc": lambda a: t_create_doc(a["name"], a.get("folder_token")),
 }
