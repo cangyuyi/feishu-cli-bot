@@ -23,7 +23,7 @@ make selftest    # 真实环境自检（需已授权 lark-cli）
 2. `src/feishu_bot/schemas.py` 里的 function calling 声明
 3. 必要时在 `docs/TOOLS.md` 更新说明
 
-`tests/test_tools.py::TestToolRegistryConsistency` 会自动校验「16 个实现 ⇄ 16 个 schema」是否一一对应，错位会立即失败。
+`tests/test_tools.py::TestToolRegistryConsistency` 会自动校验「19 个实现 ⇄ 19 个 schema」是否一一对应，错位会立即失败。
 
 ## 提交规范
 

@@ -22,7 +22,7 @@ flowchart LR
     FS -->|im list --as user| CLI[lark-cli]
     CLI --> Poll[bot.py\n轮询主循环]
     Poll -->|新消息| Agent[Agent 层\nLLM + function calling]
-    Agent -->|调用工具| T[tools.py\n16 个能力]
+    Agent -->|调用工具| T[tools.py\n19 个能力]
     T -->|lark-cli 读写| CLI
     Agent -->|自然语言回复| Send[im send --as bot]
     Send --> FS
@@ -38,7 +38,7 @@ flowchart LR
 | `config.py` | 加载 `~/.feishu_bot_env`，解析轮询间隔、写开关、时区等常量 |
 | `storage.py` | 记忆与「上次读到的消息 ID」持久化，保证重启可续、不重复回复 |
 | `formatter.py` | 纯函数：消息内容解析、时间戳格式化、当前时间 |
-| `tools.py` | 16 个工具实现（日程/任务/通信/文档/活动扫描）+ 工具注册表 `TOOL_IMPL` |
+| `tools.py` | 19 个工具实现（日程/任务/通信/文档/云盘/在线表格/活动扫描）+ 工具注册表 `TOOL_IMPL` |
 | `schemas.py` | OpenAI 兼容的 function calling 工具声明 `TOOL_SCHEMA` |
 | `agent.py` | 大模型调用 + 多轮 function calling 循环；无模型时退化为关键词/规则回复 |
 | `bot.py` | 主轮询循环：拉新消息 → 发「正在输入」→ 调 Agent → 回写；并提供 selftest/once/clear |
