@@ -257,7 +257,7 @@ TOOL_SCHEMA = [
         "type": "function",
         "function": {
             "name": "create_doc",
-            "description": "创建一个新的飞书文档（Docx，类似 Word 的在线文档）。用户说「建一个文档/飞书文档/Word 文档」时优先用。如果提供了 content，会自动把内容写入文档，不用再手动粘贴。支持简单 Markdown 风格：# 一级标题、## 二级标题、普通段落。返回 document_id 与访问链接。",
+            "description": "创建一个新的飞书文档（Docx，类似 Word 的在线文档）。用户说「建一个文档/飞书文档/Word 文档」时优先用。如果提供了 content，会把 Markdown 直接导入为飞书原生格式（# 标题、- 列表、**粗体** 等），无需手动粘贴。返回 document_id 与访问链接。",
             "parameters": {
                 "type": "object",
                 "properties": {
