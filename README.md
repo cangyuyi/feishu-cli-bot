@@ -117,27 +117,33 @@ python3 -m feishu_bot --once
 
 ## 🔁 开机自启（macOS）
 
+推荐用 **LaunchAgent** 把看门狗交给系统 `launchd` 托管：开机自动启动、崩溃自动拉起、不依赖终端窗口。
+
 ```bash
-# 一键加入登录项（开机自动后台运行）
-bash scripts/install.sh
+# 一键安装 LaunchAgent（会先停掉当前终端里的机器人，再交给 launchd）
+bash scripts/install-launchd.command
 ```
 
-或手动双击 `scripts/launch.command`：脚本用 `nohup ... &` + `disown` 把进程放到后台并脱离终端，
-关闭窗口不影响运行，日志写到项目根目录 `bot-poller.log`。
+或手动双击 `scripts/install-launchd.command`。
 
 ```bash
-# 仅把机器人加入登录项（不开浏览器授权，适合已经授权过的机器）
-bash scripts/add-login-item.command
+# 验证已托管
+launchctl list | grep com.feishu-bot.assistant
+pgrep -fl feishu
 
-# 用 LaunchAgent 常驻（launchd 纯净环境，推荐服务器/长期开机mac）
-# 包装脚本会自动定位 python3 与项目目录，无需手动改路径
-bash scripts/feishu-bot-launchd.sh &
-
-# 查看实时日志
+# 查看日志
 tail -f bot-poller.log
-# 检查进程
-ps aux | grep "python3 -m feishu_bot" | grep -v grep
+# launchd 专属输出/错误日志
+tail -f bot-launchd.err
 ```
+
+**临时/快速启动（不保证重启后自动运行）：**
+
+```bash
+bash scripts/launch.command
+```
+
+该脚本用 `nohup ... &` + `disown` 把看门狗放到后台并脱离终端，关闭窗口不影响运行，日志写到 `bot-poller.log`。
 
 ## 🪟 Windows 支持
 
