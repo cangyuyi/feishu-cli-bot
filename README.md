@@ -126,6 +126,13 @@ bash scripts/install.sh
 关闭窗口不影响运行，日志写到项目根目录 `bot-poller.log`。
 
 ```bash
+# 仅把机器人加入登录项（不开浏览器授权，适合已经授权过的机器）
+bash scripts/add-login-item.command
+
+# 用 LaunchAgent 常驻（launchd 纯净环境，推荐服务器/长期开机mac）
+# 包装脚本会自动定位 python3 与项目目录，无需手动改路径
+bash scripts/feishu-bot-launchd.sh &
+
 # 查看实时日志
 tail -f bot-poller.log
 # 检查进程
@@ -147,7 +154,7 @@ feishu-cli-bot/
 │   ├── bot.py             # 主轮询循环 + CLI 入口
 │   ├── __init__.py
 │   └── __main__.py
-├── scripts/               # launch.command（自启）/ install.sh（安装）
+├── scripts/               # launch.command（自启）/ add-login-item.command（登录项）/ feishu-bot-launchd.sh（LaunchAgent）/ install.sh（安装 + 授权引导）
 ├── config/                # feishu_bot_env.example 配置模板
 ├── tests/                 # 单元测试（标准库 unittest，零依赖）
 ├── docs/                  # ARCHITECTURE.md / TOOLS.md

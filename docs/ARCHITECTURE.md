@@ -79,3 +79,7 @@ sequenceDiagram
 ## 自启动（macOS）
 
 `scripts/launch.command` 用 `nohup ... &` + `disown` 把进程放到后台并脱离终端，注册为系统登录项后，开机即在线，关闭终端窗口不影响运行。日志写入项目根目录 `bot-poller.log`。
+
+另有两种常驻方式：
+- `scripts/add-login-item.command`：仅把机器人加入系统登录项（适合已授权过的机器，不触发浏览器授权）。
+- `scripts/feishu-bot-launchd.sh`：LaunchAgent 包装，显式设定 `PYTHONPATH` 并优先使用 WorkBuddy 托管 python3.13，适合 launchd 纯净环境下长期开机常驻；脚本会自动从自身位置推导项目目录，无需硬编码路径。
