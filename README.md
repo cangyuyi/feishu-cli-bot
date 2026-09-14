@@ -139,6 +139,23 @@ tail -f bot-poller.log
 ps aux | grep "python3 -m feishu_bot" | grep -v grep
 ```
 
+## 🪟 Windows 支持
+
+核心代码（`src/feishu_bot/`）已做跨平台处理：`cli.py` 会自动定位 `lark-cli`（支持 `LARK_CLI` 环境变量、Windows 上的 `lark-cli.cmd` / `.ps1` / `.bat`，以及 npm 全局路径），并对含空格/特殊字符的参数做 Windows 转义。
+
+仓库内 `windows/` 子目录是一份**开箱即用的 Windows 移植版**，自带 `.bat` 启动器（看门狗 `watchdog.bat`、隐藏窗口 `start-hidden.bat`、开机自启 `register-autostart.bat` / `unregister-autostart.bat`）与独立说明：
+
+```bash
+# 进到 Windows 子目录
+cd windows
+# 安装依赖与授权引导
+bash install.sh        # 或手动按 README-Windows.md 操作
+# 后台常驻（崩溃自愈）
+scripts\watchdog.bat
+```
+
+详细说明见 [windows/README-Windows.md](windows/README-Windows.md)。
+
 ## 📁 项目结构
 
 ```
@@ -159,6 +176,7 @@ feishu-cli-bot/
 ├── tests/                 # 单元测试（标准库 unittest，零依赖）
 ├── docs/                  # ARCHITECTURE.md / TOOLS.md
 ├── .github/workflows/     # CI
+├── windows/               # Windows 移植版（.bat 启动器 + README-Windows.md，核心代码与上方同源）
 ├── pyproject.toml
 ├── Makefile
 ├── requirements.txt

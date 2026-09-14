@@ -1,0 +1,43 @@
+# feishu-cli-bot 配置示例（Windows / macOS / Linux 通用）
+# ------------------------------------------------------------
+# 用法（二选一）：
+#   A) 复制本文件为  C:\Users\<你的用户名>\.feishu_bot_env  并填入真实值
+#      （注意：Windows 上文件名以点开头，保存时可能需手动输入完整名）
+#   B) 直接在本机「系统环境变量」里添加下面这些变量（等价）
+#
+# 安全提醒：本文件含 API Key，请勿提交到任何代码仓库 / 发给他人。
+
+# ---- 必填：大模型（OpenAI 兼容接口）----
+# base_url 结尾会自动补 /chat/completions，不要自己加 /chat/completions
+# 可选之一：
+#   火山方舟（豆包）：  https://ark.cn-beijing.volces.com/api/v3
+#   OpenAI：           https://api.openai.com/v1
+#   硅基流动：          https://api.siliconflow.cn/v1
+#   本地 Ollama：       http://127.0.0.1:11434/v1
+FEISHU_BOT_LLM_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+FEISHU_BOT_LLM_KEY=sk-your-key-here
+# 模型名（按你上面的 base_url 填对应模型）
+#   火山方舟豆包： doubao-seed-2-1-pro-260628
+#   OpenAI：       gpt-4o-mini
+#   Ollama：       llama3.1
+FEISHU_BOT_LLM_MODEL=doubao-seed-2-1-pro-260628
+
+# ---- 监听的会话（你与机器人的私聊 chat_id）----
+# 装好 lark-cli 并完成授权后，运行下面命令可查到你的私聊 chat_id：
+#   lark-cli im +chats-list --as user
+# 把返回里那个与你和机器人对话对应的 chat_id 填到这里（形如 oc_xxxxxxxx）
+FEISHU_BOT_CHAT_ID=oc_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# ---- lark-cli 路径（一般不用设）----
+# 正常情况下脚本会自动从 PATH / npm 全局目录找到 lark-cli。
+# 只有当你把它装到了非常规位置时，才在这里写完整路径，例如：
+#   FEISHU_BOT_LARK_CLI=C:\Users\<用户名>\AppData\Roaming\npm\lark-cli.cmd
+# （本变量名实际为 LARK_CLI，下面一行取消注释并改路径即可）
+# LARK_CLI=
+
+# ---- 可选 ----
+FEISHU_BOT_INTERVAL=3                 # 轮询间隔（秒）
+FEISHU_BOT_ALLOW_WRITE=1              # 1=允许写操作（建日程/任务/发消息/建表），0=只读
+FEISHU_BOT_TYPING=1                   # 1=收到消息先回「正在输入」表情，0=关闭
+# 对话记忆按 token 预算保留（贴近模型 256k 窗口，默认约 20 万 token ≈ 上千条）
+# FEISHU_BOT_HISTORY_TOKEN_BUDGET=200000

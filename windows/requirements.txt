@@ -1,0 +1,6 @@
+# feishu-cli-bot 运行时零第三方依赖 —— 仅使用 Python 标准库。
+# 如需运行测试，安装开发依赖：
+#     python3 -m pip install -e ".[dev]"
+# 即会拉取 pytest。
+
+# 运行时依赖：无
