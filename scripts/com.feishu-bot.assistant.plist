@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.feishu-bot.assistant</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/edy/WorkBuddy/2026-09-09-11-43-13/feishu-cli-bot/scripts/feishu-bot-watchdog.sh</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PYTHON</key>
+        <string>/Users/edy/.workbuddy/binaries/python/versions/3.13.12/bin/python3</string>
+        <key>PATH</key>
+        <string>/Users/edy/.workbuddy/binaries/python/versions/3.13.12/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>/Users/edy/WorkBuddy/2026-09-09-11-43-13/feishu-cli-bot</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+    <key>StandardOutPath</key>
+    <string>/Users/edy/WorkBuddy/2026-09-09-11-43-13/feishu-cli-bot/bot-launchd.out</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/edy/WorkBuddy/2026-09-09-11-43-13/feishu-cli-bot/bot-launchd.err</string>
+</dict>
+</plist>
