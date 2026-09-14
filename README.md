@@ -117,33 +117,44 @@ python3 -m feishu_bot --once
 
 ## 🔁 开机自启（macOS）
 
-推荐用 **LaunchAgent** 把看门狗交给系统 `launchd` 托管：开机自动启动、崩溃自动拉起、不依赖终端窗口。
+推荐用 **登录项（Login Item）** 方式，让 macOS 登录后自动执行 `scripts/launch.command`：
+
+- 运行在用户会话里，`lark-cli` 能正常访问钥匙串，收发消息都没问题
+- 一次配置，以后登录自动启动
+- 看门狗自带崩溃自愈，关掉终端窗口也不影响运行
 
 ```bash
-# 一键安装 LaunchAgent（会先停掉当前终端里的机器人，再交给 launchd）
-bash scripts/install-launchd.command
+# 一键加入登录项
+bash scripts/add-login-item.command
 ```
 
-或手动双击 `scripts/install-launchd.command`。
+或手动：「系统设置 → 通用 → 登录项 → +」把 `scripts/launch.command` 加进去。
 
 ```bash
-# 验证已托管
-launchctl list | grep com.feishu-bot.assistant
+# 验证登录项
+osascript -e 'tell application "System Events" to get the name of every login item'
+
+# 验证当前在跑
 pgrep -fl feishu
-
-# 查看日志
-tail -f bot-poller.log
-# launchd 专属输出/错误日志
-tail -f bot-launchd.err
 ```
 
-**临时/快速启动（不保证重启后自动运行）：**
+**手动快速启动（或不想改登录项时）：**
 
 ```bash
 bash scripts/launch.command
 ```
 
 该脚本用 `nohup ... &` + `disown` 把看门狗放到后台并脱离终端，关闭窗口不影响运行，日志写到 `bot-poller.log`。
+
+**⚠️ 关于 LaunchAgent（launchd）**
+
+> 某些 macOS 版本或账号权限配置下，由 `launchd` 启动的进程可能无法访问 `lark-cli` 所需的钥匙串/凭证，导致机器人能启动但无法收发消息。如果你确定环境支持，可以尝试：
+>
+> ```bash
+> bash scripts/install-launchd.command
+> ```
+>
+> 否则请优先使用上面的「登录项」方案。
 
 ## 🪟 Windows 支持
 
@@ -177,7 +188,7 @@ feishu-cli-bot/
 │   ├── bot.py             # 主轮询循环 + CLI 入口
 │   ├── __init__.py
 │   └── __main__.py
-├── scripts/               # launch.command（自启）/ add-login-item.command（登录项）/ feishu-bot-launchd.sh（LaunchAgent）/ install.sh（安装 + 授权引导）
+├── scripts/               # launch.command（后台自启·推荐）/ add-login-item.command（注册登录项）/ install-launchd.command（自启安装器）/ feishu-bot-launchd.sh（LaunchAgent·备用）/ install.sh（安装 + 授权引导）
 ├── config/                # feishu_bot_env.example 配置模板
 ├── tests/                 # 单元测试（标准库 unittest，零依赖）
 ├── docs/                  # ARCHITECTURE.md / TOOLS.md

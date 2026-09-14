@@ -78,8 +78,16 @@ sequenceDiagram
 
 ## 自启动（macOS）
 
-`scripts/launch.command` 用 `nohup ... &` + `disown` 把进程放到后台并脱离终端，注册为系统登录项后，开机即在线，关闭终端窗口不影响运行。日志写入项目根目录 `bot-poller.log`。
+**推荐：登录项（Login Item）**
 
-另有两种常驻方式：
-- `scripts/add-login-item.command`：仅把机器人加入系统登录项（适合已授权过的机器，不触发浏览器授权）。
-- `scripts/feishu-bot-launchd.sh`：LaunchAgent 包装，显式设定 `PYTHONPATH` 并优先使用 WorkBuddy 托管 python3.13，适合 launchd 纯净环境下长期开机常驻；脚本会自动从自身位置推导项目目录，无需硬编码路径。
+`scripts/launch.command` 用 `nohup ... &` + `disown` 把进程放到后台并脱离终端；再用 `scripts/add-login-item.command` 把它注册为系统登录项。这样：
+
+- 运行在用户会话里，`lark-cli` 能正常访问钥匙串，收发消息都正常
+- 关闭终端窗口不影响运行
+- 重启 Mac 后自动启动
+
+日志写入项目根目录 `bot-poller.log`。
+
+**备选：`scripts/install-launchd.command`**
+
+> 某些 macOS 版本或账号权限配置下，由 `launchd` 启动的进程无法访问 `lark-cli` 所需的钥匙串/凭证，导致机器人能启动但无法收发消息。因此该脚本已改为优先尝试登录项方案；如果你确定环境支持，可以手动配置 LaunchAgent。
