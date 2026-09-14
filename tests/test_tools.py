@@ -67,8 +67,8 @@ class TestToolRegistryConsistency(unittest.TestCase):
     def test_impl_keys_match_schema_names(self):
         schema_names = {s["function"]["name"] for s in schemas.TOOL_SCHEMA}
         impl_names = set(tools.TOOL_IMPL)
+        # 工具数量会随迭代增长，不写死具体数字，只校验「schema 与实现一一对应」
         self.assertEqual(impl_names, schema_names)
-        self.assertEqual(len(impl_names), 18)
 
     def test_dispatch_roundtrip(self):
         # get_tasks 不应触发网络（mock 兜底抛错以验证逻辑短路）

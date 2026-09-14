@@ -67,6 +67,8 @@ LARK_CLI = _resolve_lark_cli()
 # 调用失败时的重试策略（只重试「瞬时错误」，避免掩盖确定性失败）
 MAX_RETRIES = int(os.environ.get("LARK_CLI_MAX_RETRIES", "3"))
 RETRY_BACKOFF = float(os.environ.get("LARK_CLI_RETRY_BACKOFF", "1.0"))
+# 单次 lark-cli 调用超时（秒）。防止 lark-cli 卡死拖垮整条轮询链路。
+CLI_TIMEOUT = float(os.environ.get("LARK_CLI_TIMEOUT", "60"))
 
 # 命中以下关键词视为「瞬时错误」，可安全重试（网络抖动 / 飞书限流 / 5xx）
 _TRANSIENT_HINTS = (
@@ -78,22 +80,47 @@ _TRANSIENT_HINTS = (
 
 
 def _is_transient_error(r: dict) -> bool:
+    """判断是否为可重试的瞬时错误。
+
+    明确排除确定性失败：4xx（除 429 限流外）、权限/参数/范围类错误不重试，
+    避免无意义重试放大已有问题。
+    """
+    code = r.get("code")
+    if isinstance(code, int) and 400 <= code < 500 and code != 429:
+        return False
     err = r.get("error")
-    msg = (err.get("message", "") if isinstance(err, dict) else str(err or ""))
-    return any(h in msg.lower() for h in _TRANSIENT_HINTS)
+    msg = (err.get("message", "") if isinstance(err, dict) else str(err or "")).lower()
+    if any(k in msg for k in ("permission", "forbidden", "unauthorized", "invalid",
+                               "not found", "no permission", "scope")):
+        return False
+    return any(h in msg for h in _TRANSIENT_HINTS)
 
 
 def _succeeded(r: dict) -> bool:
-    """lark-cli 信封带 ``ok`` 字段；OpenAPI 原始信封带 ``code`` 字段（code=0 成功、无 ok）。"""
+    """判断 lark-cli 返回是否成功。
+
+    lark-cli 信封带 ``ok`` 字段；OpenAPI 原始信封带 ``code`` 字段（code=0 成功）。
+    若响应里既无 ``ok`` 也无 ``code``，按**失败**处理（不再默认成功），
+    避免未知格式被误判为成功。
+    """
     if r.get("ok") is True:
         return True
     if r.get("ok") is False:
         return False
-    return r.get("code", 0) == 0
+    if "code" in r:
+        return r.get("code", 1) != 0
+    return False
 
 
-def _run_once(args: list) -> dict:
-    """执行一次 lark-cli 调用并解析 JSON 结果（不含重试）。"""
+def _run_once(args: list, timeout: float = CLI_TIMEOUT) -> dict:
+    """执行一次 lark-cli 调用并解析结果（不含重试）。
+
+    稳健性：
+    - 设置调用超时，避免 lark-cli 卡死拖垮主轮询循环；
+    - 同时捕获 stdout/stderr，优先解析 stdout 的 JSON，回退到 stderr；
+    - 进程退出码非 0 且无 JSON 输出时直接判失败；
+    - 解析不出 JSON 也判失败（不把未知输出当成功）。
+    """
     looks_like_path = (os.sep in LARK_CLI) or (os.altsep is not None and os.altsep in LARK_CLI)
     if looks_like_path and not os.path.exists(LARK_CLI):
         return {
@@ -104,38 +131,42 @@ def _run_once(args: list) -> dict:
     if os.name == "nt" and LARK_CLI.lower().endswith((".cmd", ".bat")):
         inner = " ".join(_win_quote(a) for a in args)
         cmd = ["cmd.exe", "/c", f'"{LARK_CLI}" {inner}']
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=True)
-        except FileNotFoundError:
-            return {"ok": False, "error": {"message": f"无法执行 lark-cli：{LARK_CLI}（请确认已安装 Node.js 与 lark-cli）"}}
-        except Exception as exc:  # noqa: BLE001
-            return {"ok": False, "error": {"message": f"{type(exc).__name__}: {exc}"}}
     else:
         cmd = [LARK_CLI, *args]
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=True)
-        except FileNotFoundError:
-            return {"ok": False, "error": {"message": f"无法执行 lark-cli：{LARK_CLI}"}}
-        except Exception as exc:  # noqa: BLE001 - 任何异常都要兜底成可解析的错误结构
-            return {"ok": False, "error": {"message": f"{type(exc).__name__}: {exc}"}}
-
-    raw = (proc.stdout or proc.stderr or "").strip()
     try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        # 非 JSON 输出（例如帮助文本、授权提示）按错误回显前 200 字
-        return {"ok": False, "error": {"message": raw[:200] or "lark-cli 无输出"}}
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "error": {"message": f"lark-cli 调用超时（{timeout:g}s），可能是网络/授权/飞书 API 卡住。"}}
+    except FileNotFoundError:
+        return {"ok": False, "error": {"message": f"无法执行 lark-cli：{LARK_CLI}（请确认已安装 Node.js 与 lark-cli）"}}
+    except Exception as exc:  # noqa: BLE001 - 任何异常都要兜底成可解析的错误结构
+        return {"ok": False, "error": {"message": f"{type(exc).__name__}: {exc}"}}
+
+    out = (proc.stdout or "").strip()
+    err = (proc.stderr or "").strip()
+    # 优先解析 stdout；失败再尝试 stderr；都没有合法 JSON 则判失败
+    for text in (out, err):
+        if not text:
+            continue
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            continue
+    # 无任何 JSON 输出
+    if proc.returncode != 0:
+        return {"ok": False, "error": {"message": (err or out)[:500] or f"lark-cli 退出码 {proc.returncode}"}}
+    return {"ok": False, "error": {"message": (out or err)[:200] or "lark-cli 无输出"}}
 
 
 def run(args: list) -> dict:
     """调用 lark-cli 并把 stdout/stderr 的 JSON 解析成 dict。
 
     带「瞬时错误指数退避重试」：只重试网络抖动、飞书限流（429）、5xx 等可恢复错误；
-    确定性失败（lark-cli 未安装、参数错误、权限不足）不重试，直接返回，避免误导上层。
+    确定性失败（lark-cli 未安装、参数错误、权限不足、4xx）不重试，直接返回，避免误导上层。
     """
     last = None
     for attempt in range(1, MAX_RETRIES + 1):
-        last = _run_once(args)
+        last = _run_once(args, timeout=CLI_TIMEOUT)
         if _succeeded(last):
             return last
         if attempt < MAX_RETRIES and _is_transient_error(last):
