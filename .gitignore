@@ -12,6 +12,8 @@ env/
 # --- 运行产物 / 本地配置 / 密钥 ---
 *.log
 bot-poller.log
+bot-launchd.out
+bot-launchd.err
 *.state.json
 feishu_bot_env
 .feishu_bot_env
