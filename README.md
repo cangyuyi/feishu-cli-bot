@@ -16,7 +16,7 @@
 
 - 🔓 **零后台配置** —— 不建应用、不配事件订阅、不审权限，跑起来就行
 - 💬 **双向对话** —— 用「用户身份读消息、机器人身份发消息」的双身份模式，让飞书里的对话真正闭环
-- 🧠 **真·Agent** —— 大模型通过 function calling 自主调用 19 个工具，**能查日程、建任务、读文档、建表格、扫全天对话**，而不是只会聊天
+- 🧠 **真·Agent** —— 大模型通过 function calling 自主调用 23 个工具，**能查日程、建任务、读文档、建表格、扫全天对话**，而不是只会聊天
 - 🗂️ **今日活动总览** —— 一句话「我今天发了什么 / 我的飞书活动」，自动汇总你发出的消息、全天对话、日程与任务
 - 🔌 **任意大模型** —— OpenAI / 火山方舟豆包 / 本地 Ollama 等任意 OpenAI 兼容接口
 - 🔒 **写操作安全闸** —— `FEISHU_BOT_ALLOW_WRITE=0` 一键切只读，只看不写
@@ -31,7 +31,7 @@ flowchart LR
     FS -->|im list --as user| CLI[lark-cli]
     CLI --> Poll[bot.py 轮询]
     Poll -->|新消息| Agent[Agent 层\nLLM + function calling]
-    Agent -->|调用工具| T[tools.py\n19 个能力]
+    Agent -->|调用工具| T[tools.py\n23 个能力]
     T -->|lark-cli| CLI
     Agent -->|回复| Send[im send --as bot]
     Send --> FS
@@ -104,7 +104,7 @@ python3 -m feishu_bot --once
 
 ## 🛠️ 工具清单
 
-机器人内置 **19 个**可被大模型自主调用的能力，涵盖日程、任务、通信、文档、云盘、在线表格、活动总览与日报：
+机器人内置 **23 个**可被大模型自主调用的能力，涵盖日程、任务、通信、文档、云盘、在线表格、活动总览与日报：
 
 | 分类 | 工具 |
 |------|------|
@@ -141,7 +141,7 @@ feishu-cli-bot/
 │   ├── config.py          # 配置加载
 │   ├── storage.py         # 记忆/去重持久化
 │   ├── formatter.py       # 纯函数：内容解析/时间格式化
-│   ├── tools.py           # 19 个工具实现 + 注册表
+│   ├── tools.py           # 23 个工具实现 + 注册表
 │   ├── schemas.py         # function calling 工具声明
 │   ├── agent.py           # 大模型调用 + 多轮 function calling
 │   ├── bot.py             # 主轮询循环 + CLI 入口
@@ -167,7 +167,7 @@ make selftest    # 运行环境自检
 make run         # 前台运行
 ```
 
-测试覆盖纯函数（解析/格式化）、配置加载、写开关，以及**工具注册表与 schema 的一致性**（保证 16 对 16 不错位）。
+测试覆盖纯函数（解析/格式化）、配置加载、写开关，以及**工具注册表与 schema 的一致性**（保证 23 对 23 不错位）。
 
 ## ❓ 常见问题
 

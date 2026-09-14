@@ -169,23 +169,32 @@ def t_search_messages(query: str) -> str:
     return "\n".join(out)
 
 
-def t_send_to(chat_id: str, text: str) -> str:
+def _send_text(chat_id: str | None, text: str, message_id: str | None = None) -> str:
+    """发送/回复文本消息。优先 Markdown 富文本，失败降级纯文本。"""
     if not config.allow_write():
         return "写操作已关闭（FEISHU_BOT_ALLOW_WRITE=0）。"
-    r = cli.run(["im", "+messages-send", "--as", "bot", "--chat-id", chat_id, "--text", text])
+    use_md = os.environ.get("FEISHU_BOT_MARKDOWN", "1") != "0"
+    # 回复用 +messages-reply，新建用 +messages-send（两者都支持 --markdown / --text）
+    if message_id:
+        base = ["im", "+messages-reply", "--as", "bot", "--message-id", message_id]
+    else:
+        base = ["im", "+messages-send", "--as", "bot", "--chat-id", chat_id]
+    if use_md:
+        r = cli.run([*base, "--markdown", text])
+        if r.get("ok"):
+            return f"已回复消息 {message_id}。" if message_id else f"已发送到 {chat_id}。"
+    r = cli.run([*base, "--text", text])
     if not r.get("ok"):
         return f"发送失败：{r.get('error', {}).get('message', '未知错误')}"
-    return f"已发送到 {chat_id}。"
+    return f"已回复消息 {message_id}。" if message_id else f"已发送到 {chat_id}。"
+
+
+def t_send_to(chat_id: str, text: str) -> str:
+    return _send_text(chat_id, text)
 
 
 def t_reply_to_message(message_id: str, text: str) -> str:
-    if not config.allow_write():
-        return "写操作已关闭（FEISHU_BOT_ALLOW_WRITE=0）。"
-    r = cli.run(["im", "+messages-reply", "--as", "bot",
-                 "--message-id", message_id, "--text", text])
-    if not r.get("ok"):
-        return f"回复失败：{r.get('error', {}).get('message', '未知错误')}"
-    return f"已回复消息 {message_id}。"
+    return _send_text(None, text, message_id)
 
 
 # ---------- 文档 / 云盘 ----------
@@ -315,6 +324,149 @@ def t_create_doc(name: str, folder_token: str | None = None, content: str | None
     if content:
         result += "\n已按 Markdown 自动转为飞书原生格式（标题、列表、粗体等）。"
     return result
+
+
+# ---------- 建表后写数据 ----------
+
+def _coerce_json_arg(value, default):
+    """大模型可能把复杂参数传成 list/dict 或直接给 JSON 字符串，这里统一成 Python 对象。"""
+    if value is None:
+        return default
+    if isinstance(value, (list, dict)):
+        return value
+    if isinstance(value, str):
+        s = value.strip()
+        if s.startswith(("[", "{")):
+            try:
+                return json.loads(s)
+            except json.JSONDecodeError:
+                return default
+    return default
+
+
+def t_add_bitable_records(app_token: str, records: list | None = None,
+                          table_id: str | None = None) -> str:
+    """向已创建的多维表格写入数据行。
+
+    records 是「字段名→值」的字典列表；未指定 table_id 时自动取表格第一个数据表。
+    适合「建好表后直接把数据塞进去」的闭环场景。
+    """
+    if not config.allow_write():
+        return "写操作已关闭（FEISHU_BOT_ALLOW_WRITE=0）。"
+    records = _coerce_json_arg(records, [])
+    if not isinstance(records, list) or not records:
+        return "未提供 records（每行是「字段名→值」的字典列表）。"
+
+    # 用户未指定表时，取该多维表格的第一个数据表
+    if not table_id:
+        r = cli.run(["api", "GET", f"/open-apis/bitable/v1/apps/{app_token}/tables", "--as", "user"])
+        if not r.get("ok", True) and r.get("ok") is not None:
+            return f"获取表结构失败：{r.get('error', {}).get('message', '未知错误')}"
+        if r.get("code", 0) != 0:
+            return f"获取表结构失败：{r.get('msg', '未知错误')}"
+        tables = (r.get("data") or {}).get("items") or []
+        if not tables:
+            return "该多维表格没有数据表，无法写入。"
+        table_id = tables[0].get("table_id") or tables[0].get("id")
+
+    ok_count = 0
+    errs = []
+    for rec in records:
+        if not isinstance(rec, dict):
+            errs.append(f"跳过非字典行：{rec}")
+            continue
+        r = cli.run(["api", "POST",
+                     f"/open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records",
+                     "--as", "user", "--data", json.dumps({"fields": rec}, ensure_ascii=False)])
+        if not r.get("ok", True) and r.get("ok") is not None:
+            errs.append(f"写入失败：{r.get('error', {}).get('message', '未知错误')}")
+        elif r.get("code", 0) != 0:
+            errs.append(f"写入失败：{r.get('msg', '未知错误')}")
+        else:
+            ok_count += 1
+
+    result = f"已写入 {ok_count}/{len(records)} 行到多维表格 {app_token}（表 {table_id}）。"
+    if errs:
+        result += "\n部分失败：\n" + "\n".join(errs[:5])
+    return result
+
+
+def t_add_spreadsheet_rows(spreadsheet_token: str, rows: list | None = None,
+                           sheet_name: str = "Sheet1") -> str:
+    """向已创建的电子表格追加数据行。
+
+    rows 是「每行一个单元格值列表」的二维数组，例如 [["姓名","分数"],["小明",90]]。
+    通过飞书 values_append 接口追加到表格末尾。
+    """
+    if not config.allow_write():
+        return "写操作已关闭（FEISHU_BOT_ALLOW_WRITE=0）。"
+    rows = _coerce_json_arg(rows, [])
+    if not isinstance(rows, list) or not rows:
+        return "未提供 rows（每行一个单元格值列表的二维数组）。"
+
+    body = {"valueRanges": [{"range": f"{sheet_name}!A1", "values": rows}]}
+    r = cli.run(["api", "POST",
+                 f"/open-apis/sheets/v2/spreadsheets/{spreadsheet_token}/values_append",
+                 "--as", "user", "--data", json.dumps(body, ensure_ascii=False)])
+    if not r.get("ok", True) and r.get("ok") is not None:
+        return f"追加行失败：{r.get('error', {}).get('message', '未知错误')}"
+    if r.get("code", 0) != 0:
+        return f"追加行失败：{r.get('msg', '未知错误')}"
+    data = r.get("data") or {}
+    updated = None
+    if data.get("responses"):
+        updated = (data["responses"][0] or {}).get("updated_rows")
+    n = updated if updated is not None else len(rows)
+    return f"已追加 {n} 行到电子表格 {spreadsheet_token}（表 {sheet_name}）。"
+
+
+# ---------- 文档 / 云盘搜索 ----------
+
+def _scope_hint(msg: str) -> str | None:
+    """遇到 scope 不足的错误，返回带授权命令的友好提示。"""
+    if "scope" in msg.lower():
+        return ("搜索功能需要额外授权。请在终端执行一次重新授权：\n"
+                "lark-cli auth login --scope \"search:docs:read\"\n"
+                "完成后机器人即可搜索文档/云盘（无需重启）。")
+    return None
+
+
+def t_search_docs(query: str) -> str:
+    """在飞书里搜索文档、Wiki、表格文件，返回匹配的标题与链接。"""
+    r = cli.run(["docs", "+search", "--as", "user", "--query", query, "--page-size", "15"])
+    if not r.get("ok"):
+        msg = r.get('error', {}).get('message', '未知错误')
+        hint = _scope_hint(msg)
+        return hint or f"搜索失败：{msg}"
+    items = (r.get("data", {}) or {}).get("results") or (r.get("data", {}) or {}).get("items") or []
+    if not items:
+        return f"没有找到与「{query}」相关的文档。"
+    out = [f"找到 {len(items)} 条与「{query}」相关的文档："]
+    for it in items[:15]:
+        title = it.get("title") or it.get("name") or "(无标题)"
+        url = it.get("url") or it.get("link") or ""
+        typ = it.get("type") or ""
+        out.append(f"· {title} [{typ}] {url}")
+    return "\n".join(out)
+
+
+def t_search_drive(query: str) -> str:
+    """在云盘里搜索文件，返回匹配的名称与链接。"""
+    r = cli.run(["drive", "+search", "--as", "user", "--query", query, "--page-size", "15"])
+    if not r.get("ok"):
+        msg = r.get('error', {}).get('message', '未知错误')
+        hint = _scope_hint(msg)
+        return hint or f"搜索失败：{msg}"
+    items = (r.get("data", {}) or {}).get("results") or (r.get("data", {}) or {}).get("items") or []
+    if not items:
+        return f"云盘里没有找到与「{query}」相关的文件。"
+    out = [f"找到 {len(items)} 条与「{query}」相关的云盘文件："]
+    for it in items[:15]:
+        name = it.get("name") or it.get("title") or "(无名称)"
+        url = it.get("url") or ""
+        typ = it.get("type") or ""
+        out.append(f"· {name} [{typ}] {url}")
+    return "\n".join(out)
 
 
 # ---------- 身份 ----------
@@ -460,4 +612,8 @@ TOOL_IMPL = {
     "create_bitable": lambda a: t_create_bitable(a["name"], a.get("workspace_token")),
     "create_spreadsheet": lambda a: t_create_spreadsheet(a["name"]),
     "create_doc": lambda a: t_create_doc(a["name"], a.get("folder_token"), a.get("content")),
+    "add_bitable_records": lambda a: t_add_bitable_records(a["app_token"], a.get("records"), a.get("table_id")),
+    "add_spreadsheet_rows": lambda a: t_add_spreadsheet_rows(a["spreadsheet_token"], a.get("rows"), a.get("sheet_name", "Sheet1")),
+    "search_docs": lambda a: t_search_docs(a["query"]),
+    "search_drive": lambda a: t_search_drive(a["query"]),
 }

@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import os
 import time
 
@@ -33,8 +34,25 @@ def list_messages_desc() -> list:
     return data.get("messages") or data.get("items") or []
 
 
+# 是否用 Markdown 发送回复（飞书自动渲染为富文本：加粗/列表/代码等）。
+# 设置 FEISHU_BOT_MARKDOWN=0 可退回纯文本。Markdown 失败时自动降级纯文本。
+USE_MARKDOWN = os.environ.get("FEISHU_BOT_MARKDOWN", "1") != "0"
+
+
+def _send_args(text: str) -> list:
+    """构造发送消息的参数；优先 Markdown（富文本），失败由调用方降级。"""
+    if USE_MARKDOWN:
+        return ["im", "+messages-send", "--as", "bot", "--chat-id", config.CHAT_ID, "--markdown", text]
+    return ["im", "+messages-send", "--as", "bot", "--chat-id", config.CHAT_ID, "--text", text]
+
+
 def send(text: str) -> bool:
-    """以机器人身份在监听会话里发送一条消息。"""
+    """以机器人身份在监听会话里发送一条消息（默认 Markdown 富文本，失败降级纯文本）。"""
+    if USE_MARKDOWN:
+        r = cli.run(_send_args(text))
+        if r.get("ok") is True:
+            return True
+    # 降级纯文本
     r = cli.run(["im", "+messages-send", "--as", "bot", "--chat-id", config.CHAT_ID, "--text", text])
     return r.get("ok") is True
 
@@ -142,6 +160,17 @@ def main() -> None:
     print(f"[{time.strftime('%H:%M:%S')}] 记忆 {len(state.get('history', []))} 条 / 起点 {state.get('last_message_id')}", flush=True)
     print(f"[{time.strftime('%H:%M:%S')}] 大模型：{'已接入（Agent 模式）' if config.llm_configured() else '未配置（规则模式）'}"
           f" / 写操作：{'开' if config.allow_write() else '关'}", flush=True)
+
+    # 单实例锁：防止多个 bot 同时轮询同一会话导致飞书里重复回复。
+    # 用 OS 级 flock（非轮询 ps），看门狗重启时旧进程退出锁自动释放。
+    # Windows 无 fcntl，跳过（任务计划程序保证单实例）。
+    if os.name != "nt":
+        try:
+            _lock_fd = open("/tmp/feishu_bot.lock", "w")
+            fcntl.flock(_lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            print("[stop] 已有实例在运行（/tmp/feishu_bot.lock），退出以避免重复回复。", flush=True)
+            return
 
     while True:
         try:

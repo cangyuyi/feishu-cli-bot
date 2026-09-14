@@ -269,4 +269,64 @@ TOOL_SCHEMA = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_bitable_records",
+            "description": "向已创建的多维表格写入数据行。用户说「把数据写进刚建的表/往表格里加几行」时用。records 是字段名→值的字典列表（例如 [{\"姓名\":\"小明\",\"分数\":90}]）；未指定 table_id 时自动取第一个数据表。返回写入成功的行数。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "app_token": {"type": "string", "description": "多维表格的 app_token（创建表时返回的）"},
+                    "records": {"type": "string", "description": "要写入的行，JSON 数组，每行是一个「字段名→值」的字典"},
+                    "table_id": {"type": "string", "description": "数据表 ID；不传则自动取第一个表"},
+                },
+                "required": ["app_token", "records"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_spreadsheet_rows",
+            "description": "向已创建的电子表格追加数据行。用户说「往表格里追加数据/写几行到表格」时用。rows 是二维数组，每行是单元格值列表（例如 [[\"姓名\",\"分数\"],[\"小明\",90]]）。通过飞书接口追加到表格末尾。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "spreadsheet_token": {"type": "string", "description": "电子表格的 spreadsheetToken（创建时返回的）"},
+                    "rows": {"type": "string", "description": "要追加的行，JSON 二维数组，每行一个单元格值列表"},
+                    "sheet_name": {"type": "string", "description": "工作表名称，默认 Sheet1"},
+                },
+                "required": ["spreadsheet_token", "rows"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_docs",
+            "description": "在飞书里搜索文档、Wiki、表格文件。用户说「帮我找一下某文档/搜一下关于XX的资料」时用。返回匹配的标题与链接。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "搜索关键词"},
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_drive",
+            "description": "在云盘里搜索文件。用户说「云盘里有没有XX文件/搜一下云盘」时用。返回匹配的文件名与链接。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "搜索关键词"},
+                },
+                "required": ["query"],
+            },
+        },
+    },
 ]

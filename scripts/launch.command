@@ -1,40 +1,25 @@
 #!/bin/bash
-# 飞书机器人后台启动器（macOS 登录项 / 双击运行）
-# 进程脱离终端，关闭本窗口后机器人继续运行。
+# 飞书机器人启动器（macOS 登录项 / 双击运行），崩溃自愈由看门狗负责。
+# 本脚本只做「停止旧实例 + 拉起看门狗」，看门狗常驻并自动重启 bot。
 
-# 定位项目根目录（scripts/ 的上一级）
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$ROOT" || exit 1
 
-# 包位于 src/feishu_bot，需把 src 加入导入路径（重构后必需）
-export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
-
-PY="${PYTHON:-python3}"
-LOG_FILE="$ROOT/bot-poller.log"
-MODULE="feishu_bot"
-
-# 已有实例先停掉，避免重复回复（匹配任意 python 路径下的 feishu_bot 进程）
+# 先停掉旧的看门狗与 bot，避免重复拉起（feishu_bot 与 feishu-bot-watchdog 用不同分隔符，互不误杀）
+pkill -f "feishu-bot-watchdog" 2>/dev/null || true
 pkill -f "feishu_bot" 2>/dev/null || true
 sleep 1
 
 echo "=========================================="
-echo "  飞书机器人启动中..."
-echo "  日志：$LOG_FILE"
-echo "  关闭本窗口后机器人继续运行"
+echo "  飞书机器人启动中（崩溃自愈模式）..."
+echo "  日志：$ROOT/bot-poller.log"
+echo "  彻底停止：pkill -f feishu-bot-watchdog"
 echo "=========================================="
-echo
 
 # 后台常驻：nohup + disown，脱离终端（登录项启动也不会随窗口关闭而终止）
-nohup "$PY" -u -m "$MODULE" > "$LOG_FILE" 2>&1 &
-PID=$!
-disown $PID
+nohup "$SCRIPT_DIR/feishu-bot-watchdog.sh" > /dev/null 2>&1 &
+disown
 
-sleep 2
-if kill -0 "$PID" 2>/dev/null; then
-    echo "已启动成功，PID: $PID"
-    echo "查看实时日志：tail -f $LOG_FILE"
-else
-    echo "启动失败，请查看日志："
-    tail -20 "$LOG_FILE"
-fi
+echo "已启动看门狗（具体 PID 见日志）。"
+echo "查看实时日志：tail -f $ROOT/bot-poller.log"

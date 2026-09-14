@@ -14,6 +14,7 @@ import json
 import os
 import shutil
 import subprocess
+import time
 
 
 def _win_quote(s: str) -> str:
@@ -63,12 +64,36 @@ def _resolve_lark_cli() -> str:
 LARK_CLI = _resolve_lark_cli()
 
 
-def run(args: list) -> dict:
-    """调用 lark-cli 并把 stdout/stderr 的 JSON 解析成 dict。
+# 调用失败时的重试策略（只重试「瞬时错误」，避免掩盖确定性失败）
+MAX_RETRIES = int(os.environ.get("LARK_CLI_MAX_RETRIES", "3"))
+RETRY_BACKOFF = float(os.environ.get("LARK_CLI_RETRY_BACKOFF", "1.0"))
 
-    lark-cli 的错误信息可能走 stderr，这里优先取带 ``ok`` 字段的信封；
-    解析失败时返回 ``{"ok": False, "error": {"message": ...}}`` 以便上层处理。
-    """
+# 命中以下关键词视为「瞬时错误」，可安全重试（网络抖动 / 飞书限流 / 5xx）
+_TRANSIENT_HINTS = (
+    "timeout", "timed out", "429", "rate limit", "too many requests",
+    "connection", "econn", "reset by peer", "network", "502", "503", "504",
+    "temporarily", "try again", "internal error", "server error", "broken pipe",
+    "resource temporarily unavailable",
+)
+
+
+def _is_transient_error(r: dict) -> bool:
+    err = r.get("error")
+    msg = (err.get("message", "") if isinstance(err, dict) else str(err or ""))
+    return any(h in msg.lower() for h in _TRANSIENT_HINTS)
+
+
+def _succeeded(r: dict) -> bool:
+    """lark-cli 信封带 ``ok`` 字段；OpenAPI 原始信封带 ``code`` 字段（code=0 成功、无 ok）。"""
+    if r.get("ok") is True:
+        return True
+    if r.get("ok") is False:
+        return False
+    return r.get("code", 0) == 0
+
+
+def _run_once(args: list) -> dict:
+    """执行一次 lark-cli 调用并解析 JSON 结果（不含重试）。"""
     looks_like_path = (os.sep in LARK_CLI) or (os.altsep is not None and os.altsep in LARK_CLI)
     if looks_like_path and not os.path.exists(LARK_CLI):
         return {
@@ -100,3 +125,22 @@ def run(args: list) -> dict:
     except json.JSONDecodeError:
         # 非 JSON 输出（例如帮助文本、授权提示）按错误回显前 200 字
         return {"ok": False, "error": {"message": raw[:200] or "lark-cli 无输出"}}
+
+
+def run(args: list) -> dict:
+    """调用 lark-cli 并把 stdout/stderr 的 JSON 解析成 dict。
+
+    带「瞬时错误指数退避重试」：只重试网络抖动、飞书限流（429）、5xx 等可恢复错误；
+    确定性失败（lark-cli 未安装、参数错误、权限不足）不重试，直接返回，避免误导上层。
+    """
+    last = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        last = _run_once(args)
+        if _succeeded(last):
+            return last
+        if attempt < MAX_RETRIES and _is_transient_error(last):
+            wait = RETRY_BACKOFF * (2 ** (attempt - 1))
+            time.sleep(wait)
+            continue
+        return last
+    return last
